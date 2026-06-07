@@ -487,9 +487,7 @@ header_left, header_mid, lang_es, lang_pt, lang_en = st.columns(
 )
 
 with header_left:
-    st.image(NO_LIMIT_PDF_BYTES, width=45)  # más pequeño
-    st.image(NO_LIMIT_PDF_BYTES, width=56)  # tamaño recomendado
-    st.image(NO_LIMIT_PDF_BYTES, width=64)  # un poco más grande
+    st.image(RELAXLIFE_APPS_BYTES, width=150)  # tamaño recomendado
 
 with header_mid:
     st.markdown("**No-Limit_PDF**")
@@ -515,7 +513,7 @@ st.divider()
 
 _, hero_col, _ = st.columns([1, 2, 1])
 with hero_col:
-    st.image(NO_LIMIT_PDF_BYTES, use_container_width=True)
+    st.image(NO_LIMIT_PDF_BYTES, width=280)
 
 st.markdown('<div class="hero-subtitle">' + T["tagline"] + '</div>', unsafe_allow_html=True)
 st.markdown('<div class="hero-intro">' + T["intro"] + '</div>', unsafe_allow_html=True)
