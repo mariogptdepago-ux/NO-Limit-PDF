@@ -487,7 +487,9 @@ header_left, header_mid, lang_es, lang_pt, lang_en = st.columns(
 )
 
 with header_left:
-    st.image(NO_LIMIT_PDF_BYTES, width=155)
+    st.image(NO_LIMIT_PDF_BYTES, width=45)  # más pequeño
+    st.image(NO_LIMIT_PDF_BYTES, width=56)  # tamaño recomendado
+    st.image(NO_LIMIT_PDF_BYTES, width=64)  # un poco más grande
 
 with header_mid:
     st.markdown("**No-Limit_PDF**")
