@@ -1,6 +1,7 @@
 import os
 import io
 import base64
+import shutil
 import tempfile
 import subprocess
 from pathlib import Path
@@ -22,20 +23,127 @@ st.set_page_config(
 
 
 # ============================================================
-# RUTAS ROBUSTAS
+# RUTAS Y BÚSQUEDA ROBUSTA DE IMÁGENES
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
+CWD = Path.cwd()
 
-LOGO_MAIN = BASE_DIR / "assets" / "no_limit_pdf.png"
-LOGO_COMPANY = BASE_DIR / "assets" / "relaxlife_apps.png"
+IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp"]
 
 
-def img_to_base64(path: Path) -> str:
+def list_image_files():
+    """
+    Busca imágenes en la raíz del proyecto y en assets/.
+    Esto ayuda aunque GitHub tenga nombres diferentes.
+    """
+
+    folders = [
+        BASE_DIR / "assets",
+        BASE_DIR,
+        CWD / "assets",
+        CWD,
+    ]
+
+    images = []
+
+    for folder in folders:
+        if folder.exists() and folder.is_dir():
+            for file in folder.iterdir():
+                if file.is_file() and file.suffix.lower() in IMAGE_EXTENSIONS:
+                    images.append(file)
+
+    unique = []
+    seen = set()
+
+    for img in images:
+        key = str(img.resolve())
+        if key not in seen:
+            unique.append(img)
+            seen.add(key)
+
+    return unique
+
+
+def find_company_logo():
+    """
+    Busca primero el logo de RelaxLife-Apps.
+    """
+
+    images = list_image_files()
+
+    exact_names = [
+        "relaxlife_apps.png",
+        "relaxlife-apps.png",
+        "relax_life_apps.png",
+        "logo_rla.png",
+        "Logo_RLA.png",
+        "rla.png",
+    ]
+
+    for name in exact_names:
+        for img in images:
+            if img.name == name:
+                return img
+
+    for img in images:
+        low = img.name.lower()
+        if "relax" in low or "rla" in low:
+            return img
+
+    return None
+
+
+def find_main_logo(company_logo=None):
+    """
+    Busca el logo principal No-Limit_PDF.
+    Si no encuentra el nombre exacto, usa otra imagen disponible
+    que no sea el logo de la empresa.
+    """
+
+    images = list_image_files()
+
+    exact_names = [
+        "no_limit_pdf.png",
+        "no-limit-pdf.png",
+        "No-Limit_PDF.png",
+        "No_Limit_PDF.png",
+        "no_limit.png",
+        "nolimitpdf.png",
+        "logo_no_limit_pdf.png",
+    ]
+
+    for name in exact_names:
+        for img in images:
+            if img.name == name:
+                return img
+
+    for img in images:
+        low = img.name.lower()
+        if "no" in low and "limit" in low and "pdf" in low:
+            return img
+
+    for img in images:
+        low = img.name.lower()
+        if "pdf" in low and img != company_logo:
+            return img
+
+    for img in images:
+        if company_logo is None or img.resolve() != company_logo.resolve():
+            return img
+
+    return None
+
+
+def img_to_base64(path) -> str:
     """
     Convierte una imagen local en base64.
-    Si la imagen no existe, devuelve cadena vacía.
     """
+
+    if path is None:
+        return ""
+
+    path = Path(path)
 
     if not path.exists():
         return ""
@@ -44,8 +152,11 @@ def img_to_base64(path: Path) -> str:
         return base64.b64encode(img.read()).decode("utf-8")
 
 
-logo_main_b64 = img_to_base64(LOGO_MAIN)
-logo_company_b64 = img_to_base64(LOGO_COMPANY)
+LOGO_COMPANY_PATH = find_company_logo()
+LOGO_MAIN_PATH = find_main_logo(LOGO_COMPANY_PATH)
+
+logo_main_b64 = img_to_base64(LOGO_MAIN_PATH)
+logo_company_b64 = img_to_base64(LOGO_COMPANY_PATH)
 
 
 # ============================================================
@@ -80,6 +191,7 @@ LANGS = {
         "view_errors": "View files that could not be merged",
 
         "rar_error": "The .rar file could not be extracted. It may be damaged, password-protected, or unsupported.",
+        "extractor_error": "No RAR extractor was found. Please make sure packages.txt contains unar.",
         "pdf_error": "No valid PDF could be merged. Please check that the files are not damaged or protected.",
 
         "step1_title": "Upload",
@@ -100,6 +212,10 @@ LANGS = {
         "privacy": "Privacy",
         "terms": "Terms",
         "contact": "Contact",
+
+        "debug_title": "Debug information",
+        "logo_main_missing": "Main logo was not found.",
+        "logo_company_missing": "Company logo was not found.",
     },
 
     "es": {
@@ -129,6 +245,7 @@ LANGS = {
         "view_errors": "Ver archivos que no se pudieron unir",
 
         "rar_error": "No se pudo extraer el archivo .rar. Puede estar dañado, protegido con contraseña o usar un formato no soportado.",
+        "extractor_error": "No se encontró un extractor RAR. Verifica que packages.txt contenga unar.",
         "pdf_error": "No se pudo unir ningún PDF válido. Verifica que los archivos no estén dañados o protegidos.",
 
         "step1_title": "Subir",
@@ -149,6 +266,10 @@ LANGS = {
         "privacy": "Privacidad",
         "terms": "Términos",
         "contact": "Contacto",
+
+        "debug_title": "Información de diagnóstico",
+        "logo_main_missing": "No se encontró el logo principal.",
+        "logo_company_missing": "No se encontró el logo de la empresa.",
     },
 
     "pt": {
@@ -178,6 +299,7 @@ LANGS = {
         "view_errors": "Ver arquivos que não puderam ser mesclados",
 
         "rar_error": "Não foi possível extrair o arquivo .rar. Ele pode estar danificado, protegido por senha ou em formato não suportado.",
+        "extractor_error": "Nenhum extrator RAR foi encontrado. Verifique se packages.txt contém unar.",
         "pdf_error": "Nenhum PDF válido pôde ser mesclado. Verifique se os arquivos não estão danificados ou protegidos.",
 
         "step1_title": "Enviar",
@@ -198,6 +320,10 @@ LANGS = {
         "privacy": "Privacidade",
         "terms": "Termos",
         "contact": "Contato",
+
+        "debug_title": "Informações de diagnóstico",
+        "logo_main_missing": "O logo principal não foi encontrado.",
+        "logo_company_missing": "O logo da empresa não foi encontrado.",
     },
 }
 
@@ -209,6 +335,9 @@ LANGS = {
 def normalize_language(value: str) -> str:
     if not value:
         return "en"
+
+    if isinstance(value, list):
+        value = value[0] if value else "en"
 
     value = str(value).lower()
 
@@ -651,18 +780,57 @@ div.stDownloadButton > button:hover {
 
 
 # ============================================================
+# HTML SEGURO
+# ============================================================
+
+def render_html(html: str):
+    """
+    Renderiza HTML sin que Markdown lo convierta en bloque de código.
+    """
+
+    html = " ".join(html.split())
+
+    if hasattr(st, "html"):
+        st.html(html)
+    else:
+        st.markdown(html, unsafe_allow_html=True)
+
+
+# ============================================================
 # FUNCIONES DE PROCESAMIENTO
 # ============================================================
 
+def command_exists(command: str) -> bool:
+    return shutil.which(command) is not None
+
+
 def extraer_rar(rar_path: str, extract_dir: str) -> None:
-    comando = [
-        "unar",
-        "-quiet",
-        "-force-overwrite",
-        "-output-directory",
-        extract_dir,
-        rar_path
-    ]
+    """
+    Extrae .rar con unar.
+    Si unar no existe, intenta con unrar.
+    """
+
+    if command_exists("unar"):
+        comando = [
+            "unar",
+            "-quiet",
+            "-force-overwrite",
+            "-output-directory",
+            extract_dir,
+            rar_path
+        ]
+
+    elif command_exists("unrar"):
+        comando = [
+            "unrar",
+            "x",
+            "-o+",
+            rar_path,
+            extract_dir
+        ]
+
+    else:
+        raise RuntimeError(T["extractor_error"])
 
     resultado = subprocess.run(
         comando,
@@ -677,6 +845,10 @@ def extraer_rar(rar_path: str, extract_dir: str) -> None:
 
 
 def buscar_pdfs(carpeta: str) -> list[str]:
+    """
+    Busca recursivamente todos los PDF dentro de una carpeta.
+    """
+
     pdfs = []
 
     for root, _, files in os.walk(carpeta):
@@ -688,6 +860,10 @@ def buscar_pdfs(carpeta: str) -> list[str]:
 
 
 def unir_pdfs(pdf_files: list[str]) -> tuple[bytes, list[tuple[str, str]]]:
+    """
+    Une PDF y devuelve el archivo final en memoria.
+    """
+
     writer = PdfWriter()
     errores = []
 
@@ -733,24 +909,23 @@ if logo_main_b64:
 else:
     mini_logo_html = '<div class="brand-fallback">∞</div>'
 
-topbar_html = f"""
-<div class="topbar">
-    <div class="brand-mini">
-        {mini_logo_html}
-        <span>No-Limit_PDF</span>
+render_html(
+    f"""
+    <div class="topbar">
+        <div class="brand-mini">
+            {mini_logo_html}
+            <span>No-Limit_PDF</span>
+        </div>
+        <div class="nav-links">
+            <span>{T["about"]}</span>
+            <span>{T["help"]}</span>
+            <a class="lang-pill {active_es}" href="?lang=es" target="_self">ES</a>
+            <a class="lang-pill {active_pt}" href="?lang=pt" target="_self">PT</a>
+            <a class="lang-pill {active_en}" href="?lang=en" target="_self">EN</a>
+        </div>
     </div>
-
-    <div class="nav-links">
-        <span>{T["about"]}</span>
-        <span>{T["help"]}</span>
-        <a class="lang-pill {active_es}" href="?lang=es">ES</a>
-        <a class="lang-pill {active_pt}" href="?lang=pt">PT</a>
-        <a class="lang-pill {active_en}" href="?lang=en">EN</a>
-    </div>
-</div>
-"""
-
-st.markdown(topbar_html, unsafe_allow_html=True)
+    """
+)
 
 
 # ============================================================
@@ -758,32 +933,40 @@ st.markdown(topbar_html, unsafe_allow_html=True)
 # ============================================================
 
 if logo_main_b64:
-    hero_html = f"""
-<div class="hero">
-    <img src="data:image/png;base64,{logo_main_b64}" alt="No-Limit_PDF">
-    <div class="hero-subtitle">{T["tagline"]}</div>
-    <div class="hero-intro">{T["intro"]}</div>
-</div>
-"""
+    render_html(
+        f"""
+        <div class="hero">
+            <img src="data:image/png;base64,{logo_main_b64}" alt="No-Limit_PDF">
+            <div class="hero-subtitle">{T["tagline"]}</div>
+            <div class="hero-intro">{T["intro"]}</div>
+        </div>
+        """
+    )
 else:
-    hero_html = f"""
-<div class="hero">
-    <div class="hero-title">No-Limit_PDF</div>
-    <div class="hero-subtitle">{T["tagline"]}</div>
-    <div class="hero-intro">{T["intro"]}</div>
-</div>
-"""
-
-st.markdown(hero_html, unsafe_allow_html=True)
+    render_html(
+        f"""
+        <div class="hero">
+            <div class="hero-title">No-Limit_PDF</div>
+            <div class="hero-subtitle">{T["tagline"]}</div>
+            <div class="hero-intro">{T["intro"]}</div>
+        </div>
+        """
+    )
 
 
 # ============================================================
-# TARJETA PRINCIPAL NATIVA
+# TARJETA PRINCIPAL
 # ============================================================
 
 with st.container(border=True):
-    st.markdown(f'<div class="section-title">{T["upload_title"]}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="section-text">{T["upload_desc"]}</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="section-title">{T["upload_title"]}</div>',
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        f'<div class="section-text">{T["upload_desc"]}</div>',
+        unsafe_allow_html=True
+    )
 
     uploaded_file = st.file_uploader(
         T["upload_label"],
@@ -793,8 +976,14 @@ with st.container(border=True):
 
     st.divider()
 
-    st.markdown(f'<div class="section-title">{T["output_title"]}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="section-text">{T["output_desc"]}</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="section-title">{T["output_title"]}</div>',
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        f'<div class="section-text">{T["output_desc"]}</div>',
+        unsafe_allow_html=True
+    )
 
     nombre_salida = st.text_input(
         label="output_name",
@@ -807,8 +996,14 @@ with st.container(border=True):
 
     st.divider()
 
-    st.markdown(f'<div class="section-title">{T["merge_title"]}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="section-text">{T["merge_desc"]}</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="section-title">{T["merge_title"]}</div>',
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        f'<div class="section-text">{T["merge_desc"]}</div>',
+        unsafe_allow_html=True
+    )
 
     procesar = st.button(T["merge_button"])
 
@@ -887,70 +1082,70 @@ if st.session_state["pdf_final"] is not None:
 # PASOS
 # ============================================================
 
-steps_html = f"""
-<div class="steps">
-    <div class="step-card">
-        <div class="step-number">1</div>
-        <div>
-            <div class="step-title">{T["step1_title"]}</div>
-            <div class="step-text">{T["step1_text"]}</div>
+render_html(
+    f"""
+    <div class="steps">
+        <div class="step-card">
+            <div class="step-number">1</div>
+            <div>
+                <div class="step-title">{T["step1_title"]}</div>
+                <div class="step-text">{T["step1_text"]}</div>
+            </div>
+        </div>
+
+        <div class="step-card">
+            <div class="step-number">2</div>
+            <div>
+                <div class="step-title">{T["step2_title"]}</div>
+                <div class="step-text">{T["step2_text"]}</div>
+            </div>
+        </div>
+
+        <div class="step-card">
+            <div class="step-number">3</div>
+            <div>
+                <div class="step-title">{T["step3_title"]}</div>
+                <div class="step-text">{T["step3_text"]}</div>
+            </div>
         </div>
     </div>
-
-    <div class="step-card">
-        <div class="step-number">2</div>
-        <div>
-            <div class="step-title">{T["step2_title"]}</div>
-            <div class="step-text">{T["step2_text"]}</div>
-        </div>
-    </div>
-
-    <div class="step-card">
-        <div class="step-number">3</div>
-        <div>
-            <div class="step-title">{T["step3_title"]}</div>
-            <div class="step-text">{T["step3_text"]}</div>
-        </div>
-    </div>
-</div>
-"""
-
-st.markdown(steps_html, unsafe_allow_html=True)
+    """
+)
 
 
 # ============================================================
 # CARACTERÍSTICAS
 # ============================================================
 
-features_html = f"""
-<div class="features">
-    <div class="feature">
-        <div class="feature-icon">↯</div>
-        <div>
-            <div class="feature-title">{T["fast_title"]}</div>
-            <div class="feature-text">{T["fast_text"]}</div>
+render_html(
+    f"""
+    <div class="features">
+        <div class="feature">
+            <div class="feature-icon">↯</div>
+            <div>
+                <div class="feature-title">{T["fast_title"]}</div>
+                <div class="feature-text">{T["fast_text"]}</div>
+            </div>
+        </div>
+
+        <div class="feature">
+            <div class="feature-icon">◉</div>
+            <div>
+                <div class="feature-title">{T["private_title"]}</div>
+                <div class="feature-text">{T["private_text"]}</div>
+            </div>
+        </div>
+
+        <div class="feature">
+            <div class="feature-icon">∞</div>
+            <div>
+                <div class="feature-title">{T["unlimited_title"]}</div>
+                <div class="feature-text">{T["unlimited_text"]}</div>
+            </div>
         </div>
     </div>
-
-    <div class="feature">
-        <div class="feature-icon">◉</div>
-        <div>
-            <div class="feature-title">{T["private_title"]}</div>
-            <div class="feature-text">{T["private_text"]}</div>
-        </div>
-    </div>
-
-    <div class="feature">
-        <div class="feature-icon">∞</div>
-        <div>
-            <div class="feature-title">{T["unlimited_title"]}</div>
-            <div class="feature-text">{T["unlimited_text"]}</div>
-        </div>
-    </div>
-</div>
-"""
-
-st.markdown(features_html, unsafe_allow_html=True)
+    """
+)
 
 
 # ============================================================
@@ -962,23 +1157,38 @@ if logo_company_b64:
 else:
     company_logo_html = '<div class="brand-fallback">R</div>'
 
-footer_html = f"""
-<div class="footer-custom">
-    <div class="footer-brand">
-        {company_logo_html}
-        <span>RelaxLife-Apps</span>
-    </div>
+render_html(
+    f"""
+    <div class="footer-custom">
+        <div class="footer-brand">
+            {company_logo_html}
+            <span>RelaxLife-Apps</span>
+        </div>
 
-    <div class="footer-center">
-        © 2025 RelaxLife-Apps. {T["footer_rights"]}
-    </div>
+        <div class="footer-center">
+            © 2025 RelaxLife-Apps. {T["footer_rights"]}
+        </div>
 
-    <div class="footer-links">
-        <span>{T["privacy"]}</span>
-        <span>{T["terms"]}</span>
-        <span>{T["contact"]}</span>
+        <div class="footer-links">
+            <span>{T["privacy"]}</span>
+            <span>{T["terms"]}</span>
+            <span>{T["contact"]}</span>
+        </div>
     </div>
-</div>
-"""
+    """
+)
 
-st.markdown(footer_html, unsafe_allow_html=True)
+
+# ============================================================
+# DIAGNÓSTICO OPCIONAL
+# ============================================================
+
+if st.query_params.get("debug", "0") == "1":
+    with st.expander(T["debug_title"], expanded=True):
+        st.write("BASE_DIR:", str(BASE_DIR))
+        st.write("CWD:", str(CWD))
+        st.write("Main logo path:", str(LOGO_MAIN_PATH) if LOGO_MAIN_PATH else T["logo_main_missing"])
+        st.write("Company logo path:", str(LOGO_COMPANY_PATH) if LOGO_COMPANY_PATH else T["logo_company_missing"])
+        st.write("Images found:")
+        for img in list_image_files():
+            st.write("-", str(img))
