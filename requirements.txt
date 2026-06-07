@@ -1,3 +1,0 @@
-streamlit>=1.41
-pypdf>=5.0.0
-natsort>=8.4.0
